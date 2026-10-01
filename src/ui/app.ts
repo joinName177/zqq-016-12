@@ -5,6 +5,8 @@ export interface TreeUIHandlers {
   onWaterNode: (nodeId: string) => void;
   onPruneNode: (nodeId: string) => void;
   onHarvestNode: (nodeId: string) => void;
+  onToggleNode: (nodeId: string) => void;
+  onBackToPreviousTree: () => void;
   onDeleteSpecimen: (id: string) => void;
   onToggleCabinet: (open: boolean) => void;
 }
@@ -15,6 +17,8 @@ export function renderTreeApp(
   specimens: LifeSpecimen[],
   isCabinetOpen: boolean,
   presets: string[],
+  expandedIds: Set<string>,
+  historyDepth: number,
   handlers: TreeUIHandlers
 ) {
   const esc = (s: string) =>
@@ -22,11 +26,36 @@ export function renderTreeApp(
 
   // Organize nodes by layer index (0 to 4)
   const layers: LifeNode[][] = [[], [], [], [], []];
+  const layerTotal: number[] = [0, 0, 0, 0, 0];
   Object.values(tree.nodes).forEach(n => {
-    if (layers[n.layerIndex]) {
+    if (layers[n.layerIndex]) layerTotal[n.layerIndex] += 1;
+  });
+
+  // 可见性：自根向下沿“已展开”的祖先链推导。
+  // expandedIds 只可能令“父链完整且全部展开”的节点显现，
+  // 因此陈旧/孤立的展开记录不会错误地暴露深层节点。
+  const visibleIds = new Set<string>();
+  const walkVisible = (id: string) => {
+    const node = tree.nodes[id];
+    if (!node) return;
+    visibleIds.add(id);
+    if (expandedIds.has(id)) {
+      node.childrenIds.forEach(walkVisible);
+    }
+  };
+  walkVisible(tree.rootId);
+
+  Object.values(tree.nodes).forEach(n => {
+    if (layers[n.layerIndex] && visibleIds.has(n.id)) {
       layers[n.layerIndex].push(n);
     }
   });
+
+  const countSubtree = (id: string): number => {
+    const node = tree.nodes[id];
+    if (!node) return 0;
+    return node.childrenIds.reduce((sum, childId) => sum + 1 + countSubtree(childId), 0);
+  };
 
   const eraTitles = ['起点分歧点', '+1年·涟漪微漾', '+3年·风向转折', '+5年·航道分野', '+10年·宿命标本'];
 
@@ -40,9 +69,15 @@ export function renderTreeApp(
             <p>COUNTERFACTUAL LIFE TREE &amp; PARALLEL SPECIMENS · v1.0.0</p>
           </div>
         </div>
-        <button class="cabinet-btn" id="btnOpenCabinet">
-          🗄️ 平行人生标本馆 (${specimens.length})
-        </button>
+        <div class="header-actions">
+          <button class="back-tree-btn" id="btnBackTree" ${historyDepth > 0 ? '' : 'disabled'}
+            title="${historyDepth > 0 ? '回到上一棵反事实树，并恢复它各自的展开状态' : '当前已是最初的那棵树'}">
+            ↩️ 返回上一棵树${historyDepth > 0 ? ` (${historyDepth})` : ''}
+          </button>
+          <button class="cabinet-btn" id="btnOpenCabinet">
+            🗄️ 平行人生标本馆 (${specimens.length})
+          </button>
+        </div>
       </header>
 
       <!-- Assumption Generator Hub -->
@@ -71,18 +106,35 @@ export function renderTreeApp(
             .map(
               (layerNodes, idx) => `
             <div class="generation-column">
-              <div class="column-header">${eraTitles[idx]}</div>
+              <div class="column-header">
+                ${eraTitles[idx]}
+                ${layerTotal[idx] > layers[idx].length ? `<span class="layer-collapsed-hint">（已收起 ${layerTotal[idx] - layers[idx].length}）</span>` : ''}
+              </div>
+              ${layerNodes.length === 0
+                ? `<div class="layer-empty">此处的分支已被收起或尚未展开<br/>展开上游节点即可重新显现</div>`
+                : ''}
               ${layerNodes
                 .map(
-                  node => `
-                <div class="node-card ${node.isPruned ? 'pruned' : ''}" 
-                     style="--cat-color: ${node.color};" 
+                  node => {
+                    const isExpanded = expandedIds.has(node.id);
+                    const childCount = node.childrenIds.length;
+                    const hiddenDescendants = !isExpanded ? countSubtree(node.id) : 0;
+                    return `
+                <div class="node-card ${node.isPruned ? 'pruned' : ''}"
+                     style="--cat-color: ${node.color};"
                      data-id="${node.id}">
-                  <span class="node-category-tag">${esc(node.categoryName)}</span>
+                  <div class="node-card-head">
+                    <span class="node-category-tag">${esc(node.categoryName)}</span>
+                    ${childCount > 0 ? `
+                      <button class="btn-toggle" data-toggleid="${node.id}" title="${isExpanded ? '收起此走向的下游分支' : '展开此走向的下游分支'}">
+                        ${isExpanded ? '▼ 收起' : '▶ 展开'}
+                        ${hiddenDescendants > 0 ? `<span class="hidden-count">·${hiddenDescendants}个节点</span>` : ''}
+                      </button>` : '<span class="leaf-hint">🍃 末端</span>'}
+                  </div>
                   <div class="node-title">${esc(node.title)}</div>
                   <div class="node-desc">${esc(node.scenarioDescription)}</div>
                   <div class="node-quote">${esc(node.specimenQuote)}</div>
-                  
+
                   <div class="vitality-bar-bg">
                     <div class="vitality-bar-fill" style="width: ${node.vitality}%;"></div>
                   </div>
@@ -99,7 +151,8 @@ export function renderTreeApp(
                     </button>
                   </div>
                 </div>
-              `
+              `;
+                  }
                 )
                 .join('')}
             </div>
@@ -163,6 +216,9 @@ export function renderTreeApp(
   `;
 
   // Attach event listeners
+  container.querySelector('#btnBackTree')?.addEventListener('click', () => {
+    if (historyDepth > 0) handlers.onBackToPreviousTree();
+  });
   container.querySelector('#btnOpenCabinet')?.addEventListener('click', () => handlers.onToggleCabinet(true));
   container.querySelector('#btnCloseCabinet')?.addEventListener('click', () => handlers.onToggleCabinet(false));
   container.querySelector('#cabinetOverlay')?.addEventListener('click', e => {
@@ -189,6 +245,14 @@ export function renderTreeApp(
         inputEl.value = preset;
         handlers.onGrowNewTree(preset);
       }
+    });
+  });
+
+  // Expand / collapse toggle on nodes
+  container.querySelectorAll('.btn-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-toggleid');
+      if (id) handlers.onToggleNode(id);
     });
   });
 

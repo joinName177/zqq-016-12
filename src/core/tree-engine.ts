@@ -142,7 +142,9 @@ export function buildCounterfactualTree(assumption: string): CounterfactualTree 
   buildNodes(storiesB);
 
   return {
-    id: `tree-${Date.now()}`,
+    // 时间戳 + 随机熵，保证同一毫秒内生长的多棵树也有唯一身份，
+    // 避免“按树记录的展开状态”因树 ID 撞车而串行错乱。
+    id: `tree-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
     assumption,
     rootId,
     nodes,

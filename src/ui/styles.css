@@ -94,6 +94,36 @@ body {
   transform: translateY(-1px);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.back-tree-btn {
+  background: var(--tree-card);
+  color: var(--text-main);
+  font-weight: 700;
+  border: 1px solid var(--leaf);
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: var(--font-serif);
+  font-size: 13px;
+  transition: all 0.2s;
+}
+
+.back-tree-btn:hover:not(:disabled) {
+  border-color: var(--leaf);
+  color: var(--leaf);
+  transform: translateY(-1px);
+}
+
+.back-tree-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* Assumption Generator Hub */
 .generator-hub {
   background: var(--tree-panel);
@@ -216,6 +246,22 @@ body {
   border: 1px solid rgba(226, 177, 104, 0.2);
 }
 
+.layer-collapsed-hint {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 11px;
+}
+
+.layer-empty {
+  border: 1px dashed var(--tree-border);
+  border-radius: 10px;
+  padding: 18px 12px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
 /* Life Node Card */
 .node-card {
   background: var(--tree-card);
@@ -247,7 +293,44 @@ body {
   padding: 2px 6px;
   border-radius: 4px;
   display: inline-block;
+}
+
+.node-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 6px;
+}
+
+.btn-toggle {
+  background: rgba(82, 183, 136, 0.12);
+  border: 1px solid var(--leaf);
+  color: var(--leaf);
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-serif);
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-toggle:hover {
+  background: rgba(82, 183, 136, 0.25);
+}
+
+.btn-toggle .hidden-count {
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+.leaf-hint {
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .node-title {
